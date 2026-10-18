@@ -1,0 +1,9 @@
+{
+  "leaderboard": {
+    "stats": [
+      { "key": "points", "label": "Best expedition", "order": "highest" },
+      { "key": "streak", "label": "Daily streak", "order": "highest" },
+      { "key": "solved", "label": "Origins found", "order": "highest" }
+    ]
+  }
+}

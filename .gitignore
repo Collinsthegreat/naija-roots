@@ -1,0 +1,5 @@
+capture.py
+review-frames/
+__pycache__/
+*.mp4
+release.sh

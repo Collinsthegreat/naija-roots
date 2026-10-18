@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#f3e6cf">
+  <meta name="description" content="ROOTS 3D: track down a mystery Nigerian tribe or African nation with your start.ng explorer.">
+  <title>ROOTS 3D · Naija Tribes &amp; Africa 54</title>
+
+  <script type="importmap">
+    { "imports": { "three": "./three.module.js" } }
+  </script>
+
+  <style>
+    /* ---------- Design tokens: warm, sunlit tabletop ---------- */
+    :root {
+      --sand-50: #fbf6ec;
+      --sand-100: #f3e6cf;
+      --sand-200: #e8d3ad;
+      --sand-300: #d9b98a;
+      --clay-500: #c8643b;
+      --clay-600: #a94f2c;
+      --clay-700: #7f3a20;
+      --leaf-500: #5f8f4e;
+      --leaf-700: #3d6234;
+      --sky-300: #a9d3e0;
+      --sky-500: #4f97ad;
+      --ink-900: #2b2118;
+      --ink-700: #4a3b2e;
+      --ink-500: #7a6655;
+      --paper: #fffaf1;
+
+      --fb-green: #3f9b5a;
+      --fb-cyan: #2fa7b5;
+      --fb-yellow: #e2b33c;
+      --fb-red: #cf5340;
+
+      --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+
+      --radius-s: 10px;
+      --radius-m: 16px;
+      --radius-l: 24px;
+      --shadow-soft: 0 6px 18px rgba(74, 46, 22, 0.16), 0 1px 3px rgba(74, 46, 22, 0.12);
+      --shadow-lift: 0 14px 34px rgba(74, 46, 22, 0.22), 0 2px 6px rgba(74, 46, 22, 0.14);
+
+      --safe-t: env(safe-area-inset-top, 0px);
+      --safe-r: env(safe-area-inset-right, 0px);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-l: env(safe-area-inset-left, 0px);
+      --gutter: clamp(10px, 2.4vw, 20px);
+
+      color-scheme: light;
+    }
+
+    /* ---------- Base ---------- */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--sand-100);
+      color: var(--ink-900);
+      font-family: var(--font-ui);
+      font-size: 16px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 3px solid var(--sky-500); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    /* ---------- 3D canvas ---------- */
+    #scene {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: block;
+      touch-action: none;
+      outline: none;
+      background: radial-gradient(120% 90% at 50% 35%, var(--sand-50) 0%, var(--sand-100) 55%, var(--sand-200) 100%);
+    }
+
+    /* ---------- HUD layer ---------- */
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      padding: calc(var(--safe-t) + var(--gutter)) calc(var(--safe-r) + var(--gutter))
+               calc(var(--safe-b) + var(--gutter)) calc(var(--safe-l) + var(--gutter));
+      z-index: 10;
+    }
+    #hud > * { pointer-events: auto; }
+    .hud-slot:empty { display: none; }
+
+    .panel {
+      background: var(--paper);
+      background: color-mix(in srgb, var(--paper) 92%, transparent);
+      border: 1px solid color-mix(in srgb, var(--sand-300) 70%, transparent);
+      border-radius: var(--radius-m);
+      box-shadow: var(--shadow-soft);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+
+    /* Top bar: profile card, mode, battery */
+    #top-bar {
+      position: absolute;
+      top: calc(var(--safe-t) + var(--gutter));
+      left: calc(var(--safe-l) + var(--gutter));
+      right: calc(var(--safe-r) + var(--gutter));
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 56px;
+      flex-wrap: wrap; /* whole groups move to a second row, never half a group */
+      pointer-events: none;
+    }
+    #top-bar > * { pointer-events: auto; }
+
+    /* Clue panel: bottom sheet on phones, left column on wide screens */
+    #clue-panel {
+      position: absolute;
+      left: calc(var(--safe-l) + var(--gutter));
+      right: calc(var(--safe-r) + var(--gutter));
+      bottom: calc(var(--safe-b) + var(--gutter) + 76px);
+      max-height: 32vh; /* leave the board visible on phones */
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 12px;
+    }
+
+    /* Guess bar: bottom centre */
+    #guess-bar {
+      position: absolute;
+      left: 50%;
+      bottom: calc(var(--safe-b) + var(--gutter));
+      transform: translateX(-50%);
+      width: min(560px, calc(100vw - var(--safe-l) - var(--safe-r) - 2 * var(--gutter)));
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 999px;
+    }
+
+    /* Drawer: slides in from the right (leaderboard, plaza, settings) */
+    #drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: min(380px, 100vw);
+      padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 16px) 16px;
+      border-radius: var(--radius-l) 0 0 var(--radius-l);
+      overflow-y: auto;
+      transform: translateX(0);
+      transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
+    }
+    #drawer[data-open="false"] { transform: translateX(105%); }
+
+    /* Toasts: top centre, below the top bar */
+    #toast-layer {
+      position: absolute;
+      top: calc(var(--safe-t) + var(--gutter) + var(--top-h, 56px) + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(420px, calc(100vw - 2 * var(--gutter)));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    #toast-layer > * { pointer-events: auto; }
+
+    /* Modal layer: dims the scene, centres its child */
+    #modal-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 16px) calc(var(--safe-l) + 16px);
+      background: rgba(43, 33, 24, 0.38);
+    }
+    #modal-layer:empty { display: none; }
+    #modal-layer > * {
+      width: min(520px, 100%);
+      max-height: 100%;
+      overflow-y: auto;
+      padding: 22px;
+      border-radius: var(--radius-l);
+      background: var(--paper);
+      box-shadow: var(--shadow-lift);
+    }
+
+    /* Loading screen (removed by main.js after the first frame) */
+    #loading {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(120% 90% at 50% 35%, var(--sand-50) 0%, var(--sand-100) 55%, var(--sand-200) 100%);
+      text-align: center;
+    }
+    .loading-title { display: block; font-size: 2.6rem; letter-spacing: 0.04em; color: var(--ink-900); }
+    .loading-title span { color: var(--clay-500); }
+    .loading-card p { margin: 10px 0 0; color: var(--ink-700); }
+    .loading-spinner {
+      display: block;
+      width: 34px;
+      height: 34px;
+      margin: 18px auto 0;
+      border-radius: 50%;
+      border: 4px solid var(--sand-300);
+      border-top-color: var(--clay-500);
+      animation: roots-spin 0.9s linear infinite;
+    }
+    .loading-card .loading-slow { opacity: 0; max-width: 34ch; margin-inline: auto; font-size: 0.9rem; animation: roots-appear 0.4s 9s forwards; }
+    @keyframes roots-spin { to { transform: rotate(360deg); } }
+    @keyframes roots-appear { to { opacity: 1; } }
+
+    /* Fatal error card (e.g. no WebGL) */
+    .fatal h2 { margin: 0 0 8px; font-size: 1.25rem; color: var(--clay-700); }
+    .fatal p { margin: 0; color: var(--ink-700); }
+
+
+    /* ---------- HUD controls ---------- */
+    .muted { color: var(--ink-500); }
+    .small { font-size: 0.8rem; margin: 4px 0 0; }
+    button { border: 0; background: none; padding: 0; }
+    button:disabled { cursor: default; opacity: 0.5; }
+    .pill-btn, .primary-btn {
+      min-height: 40px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .pill-btn { background: var(--sand-100); color: var(--ink-900); border: 1px solid var(--sand-300); }
+    .pill-btn:not(:disabled):hover { background: var(--sand-200); }
+    .primary-btn { background: var(--clay-500); color: #fffaf1; box-shadow: 0 2px 0 var(--clay-700); }
+    .primary-btn:not(:disabled):hover { background: var(--clay-600); }
+    .link-btn { color: var(--clay-600); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; min-height: 32px; }
+    .icon-btn { width: 36px; height: 36px; border-radius: 50%; font-size: 1.4rem; line-height: 1; color: var(--ink-700); }
+    .icon-btn:hover { background: var(--sand-100); }
+
+    /* Top bar */
+    .tb-group { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; flex-wrap: nowrap; }
+    .tb-stats { padding: 6px 8px; }
+    .brand { font-size: 1.05rem; letter-spacing: 0.04em; color: var(--clay-700); white-space: nowrap; }
+    .seg { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--sand-100); border: 1px solid var(--sand-300); }
+    .seg button { min-height: 34px; padding: 0 12px; border-radius: 999px; font-weight: 600; font-size: 0.9rem; color: var(--ink-700); white-space: nowrap; }
+    .seg button[aria-pressed="true"] { background: var(--paper); color: var(--ink-900); box-shadow: var(--shadow-soft); }
+    .battery { display: flex; align-items: center; gap: 8px; }
+    .battery-cap { width: 6px; height: 12px; border-radius: 2px; background: var(--leaf-700); order: 2; margin-left: -6px; }
+    .battery-track { position: relative; width: 110px; height: 16px; border-radius: 6px; background: var(--sand-200); border: 2px solid var(--leaf-700); overflow: hidden; }
+    .battery-fill, .battery-ghost { position: absolute; inset: 0 auto 0 0; }
+    .battery-ghost { background: var(--fb-red); opacity: 0.75; }
+    .battery-fill { background: linear-gradient(180deg, #8cc56d, var(--leaf-500)); }
+    .battery.low .battery-fill { background: linear-gradient(180deg, #f0c45a, var(--fb-yellow)); }
+    .battery-num { order: 3; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 4.4ch; text-align: right; }
+    .pips { display: flex; gap: 5px; }
+    .pip { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--clay-500); }
+    .pip.on { background: var(--clay-500); }
+    .streak { display: inline-flex; align-items: baseline; gap: 6px; font-size: 0.9rem; white-space: nowrap; }
+    .streak-label { color: var(--ink-500); }
+    .short { display: none; }
+    /* Icons drawn with CSS gradients (no image files): plaza monument, podium bars */
+    .icon { display: none; width: 20px; height: 18px; }
+    .icon-plaza {
+      background:
+        linear-gradient(currentColor, currentColor) center bottom / 18px 3px no-repeat,
+        linear-gradient(currentColor, currentColor) center 4px / 8px 11px no-repeat,
+        linear-gradient(currentColor, currentColor) center top / 14px 3px no-repeat;
+    }
+    .icon-board {
+      background:
+        linear-gradient(currentColor, currentColor) left bottom / 5px 55% no-repeat,
+        linear-gradient(currentColor, currentColor) center bottom / 5px 100% no-repeat,
+        linear-gradient(currentColor, currentColor) right bottom / 5px 35% no-repeat;
+    }
+    .player-chip { position: relative; }
+    .player-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--sand-100); }
+    .chip-dot { width: 26px; height: 26px; border-radius: 50%; border: 4px solid; }
+    .chip-name { font-weight: 600; max-width: 12ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Clue panel */
+    /* Solid, so scrolled clue text never shows through the sticky header */
+    .cp-head { position: sticky; top: -12px; margin: -12px -12px 8px; padding: 10px 12px; background: var(--paper); border-radius: var(--radius-m) var(--radius-m) 0 0; z-index: 1; }
+    .sheet-toggle { width: 100%; text-align: left; min-height: 32px; font-size: 1rem; }
+    .history { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+    .guess { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--radius-s); background: var(--sand-50); border: 1px solid var(--sand-200); }
+    .guess-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--tier); flex: none; }
+    .guess-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .guess-meta { font-size: 0.85rem; color: var(--ink-700); white-space: nowrap; }
+    .tier-green { --tier: var(--fb-green); }
+    .tier-cyan { --tier: var(--fb-cyan); }
+    .tier-yellow { --tier: var(--fb-yellow); }
+    .tier-red { --tier: var(--fb-red); }
+    .clue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .clue { border-radius: var(--radius-s); border: 1px solid var(--sand-200); background: var(--paper); padding: 10px 12px; transform-origin: 50% 50%; }
+    .clue[data-state="open"] .face-locked, .clue[data-state="locked"] .face-open { display: none; }
+    .clue[data-state="locked"] { background: var(--sand-50); border-style: dashed; }
+    .clue.is-next[data-state="locked"] { border: 1px solid var(--clay-500); border-style: solid; }
+    .clue-head { display: flex; align-items: center; gap: 8px; }
+    .clue-num { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; font-weight: 700; background: var(--sand-200); color: var(--ink-700); }
+    .clue-cat { flex: 1; min-width: 0; font-weight: 600; font-size: 0.9rem; color: var(--ink-700); }
+    .clue-free { font-size: 0.75rem; font-weight: 700; color: var(--leaf-700); }
+    .clue-text { margin: 6px 0 0; }
+    /* Cost with a small drawn padlock (body + shackle) */
+    .clue-cost { position: relative; padding-left: 15px; font-size: 0.85rem; font-weight: 700; color: var(--ink-500); }
+    .clue-cost::before { content: ""; position: absolute; left: 1px; top: 50%; width: 10px; height: 7px; margin-top: -1px; border-radius: 2px; background: currentColor; }
+    .clue-cost::after { content: ""; position: absolute; left: 3px; top: 50%; width: 6px; height: 6px; margin-top: -6px; border: 2px solid currentColor; border-bottom: 0; border-radius: 4px 4px 0 0; }
+    .unlock-btn { min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--clay-500); color: #fffaf1; font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+    .unlock-btn:not(:disabled):hover { background: var(--clay-600); }
+
+    /* Guess bar */
+    #guess-bar { justify-content: flex-end; }
+    .gb-text { flex: 1; min-width: 0; padding-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* State picker (above the guess bar) */
+    #picker {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(var(--safe-b) + var(--gutter) + 72px);
+      width: min(420px, calc(100vw - var(--safe-l) - var(--safe-r) - 2 * var(--gutter)));
+      max-height: min(52vh, 460px);
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      z-index: 2;
+    }
+    .picker-head, .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .picker-hint { margin: 2px 0 8px; color: var(--ink-700); font-size: 0.9rem; }
+    .picker-foot { padding-top: 8px; text-align: center; }
+    /* The padding (cancelled by the margin) is room for the 5px focus ring: a
+       scroll box clips anything outside it */
+    .pick-list { display: grid; gap: 6px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 5px; margin: -5px; scroll-padding: 5px; }
+    .pick-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 12px; border-radius: var(--radius-s); background: var(--sand-50); border: 1px solid var(--sand-200); text-align: left; }
+    .pick-item:not(:disabled):hover { background: var(--sand-100); border-color: var(--sand-300); }
+    .pick-name { font-weight: 600; }
+    .pick-group { flex: 1; font-size: 0.8rem; color: var(--ink-500); text-align: right; }
+    .tier-chip { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: #fff; background: var(--tier); }
+
+    /* Finder drawer */
+    #drawer { display: flex; flex-direction: column; gap: 10px; z-index: 3; }
+    .drawer-title { margin: 0; font-size: 1.2rem; }
+    .search { width: 100%; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--sand-300); background: var(--sand-50); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { min-height: 32px; padding: 0 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; background: var(--sand-100); border: 1px solid var(--sand-300); }
+    .chip[aria-pressed="true"] { background: var(--ink-900); color: var(--paper); border-color: var(--ink-900); }
+    .finder-count { margin: 0; font-size: 0.85rem; }
+    .finder-list { flex: 1; }
+
+    /* Toasts */
+    .toast { padding: 10px 16px; border-radius: var(--radius-m); background: var(--paper); box-shadow: var(--shadow-lift); border-left: 6px solid var(--tier, var(--sand-300)); max-width: 100%; }
+
+    /* End screen */
+    .end-card { text-align: center; }
+    .end-kicker { margin: 0; font-weight: 700; color: var(--clay-600); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.8rem; }
+    .end-card.won .end-kicker { color: var(--leaf-700); }
+    .end-answer { margin: 4px 0 0; font-size: 1.8rem; }
+    .end-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; }
+    .end-stat { display: grid; padding: 8px 4px; border-radius: var(--radius-s); background: var(--sand-50); }
+    .end-stat b { font-size: 1.25rem; }
+    .end-stat span { font-size: 0.75rem; color: var(--ink-500); }
+    .end-award { margin: 0 0 6px; font-weight: 600; color: var(--leaf-700); }
+    .end-submit { margin: 0 0 10px; font-size: 0.9rem; color: var(--ink-700); }
+    .end-submit.error { color: var(--clay-700); }
+    .end-clues { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; text-align: left; }
+    .end-clues li { display: flex; gap: 10px; }
+    .end-clues p { margin: 2px 0 0; }
+    /* Sticky footer: the buttons stay in view while the clue list scrolls behind them */
+    .end-actions { position: sticky; bottom: -22px; margin: 0 -22px -22px; padding: 12px 22px 22px; background: var(--paper); border-top: 1px solid var(--sand-200); border-radius: 0 0 var(--radius-l) var(--radius-l); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+    .end-tomorrow { width: 100%; margin: 0 0 4px; color: var(--ink-700); }
+
+    /* Score status badge + leaderboard */
+    .sync-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--sand-100); color: var(--ink-500); white-space: nowrap; }
+    .sync-badge[data-state="guest"] { background: #f6e3b0; color: #6b4e10; }
+    .sync-badge[data-state="saved"] { background: #d6ecd9; color: var(--leaf-700); }
+    .sync-badge[data-state="error"] { background: #f4d3cb; color: var(--clay-700); }
+    .lb-note { margin: 0; }
+    .lb-invite { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: var(--radius-s); background: var(--sand-50); border: 1px solid var(--sand-200); font-size: 0.9rem; }
+    .lb-message { margin: 8px 0; color: var(--ink-700); }
+    .lb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .lb-table th { text-align: left; font-size: 0.72rem; color: var(--ink-500); font-weight: 700; padding: 4px 6px; border-bottom: 1px solid var(--sand-200); }
+    .lb-table td { padding: 7px 6px; border-bottom: 1px solid var(--sand-100); }
+    .lb-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .lb-table tr.own td { background: #fbe9c8; font-weight: 700; }
+    .lb-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+    .lb-local { display: grid; gap: 2px; margin-top: auto; padding-top: 10px; font-size: 0.8rem; color: var(--ink-700); border-top: 1px solid var(--sand-200); }
+
+    /* Capture frames: no wall-clock CSS animation */
+    html.capture *, html.capture *::before, html.capture *::after { transition: none !important; animation: none !important; }
+
+    /* ---------- Responsive ---------- */
+    @media (min-width: 900px) {
+      #clue-panel {
+        right: auto;
+        top: calc(var(--safe-t) + var(--gutter) + var(--top-h, 56px) + 12px);
+        bottom: calc(var(--safe-b) + var(--gutter) + 80px);
+        width: 340px;
+        max-height: none;
+      }
+    }
+
+    /* Laptop widths: drop the brand and shorten the streak so the bar is one row */
+    @media (max-width: 1439px) {
+      .brand { display: none; }
+      .tb-group { padding-left: 8px; }
+      .streak .long { display: none; }
+      .streak .short { display: inline; }
+    }
+
+    @media (max-width: 400px) {
+      :root { font-size: 15px; }
+      #top-bar { min-height: 48px; }
+    }
+
+    /* Phones: the clue panel is a bottom sheet that can fold away */
+    @media (max-width: 899px) {
+      #top-bar { flex-wrap: wrap; align-items: stretch; }
+      .tb-group { flex: 1 1 auto; justify-content: center; }
+      .battery-track { width: 84px; }
+      #clue-panel.collapsed { max-height: 54px; overflow: hidden; }
+      .end-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    /* Touch screens and narrow windows: every control at least 44px */
+    @media (pointer: coarse), (max-width: 899px) {
+      .pill-btn, .primary-btn, .unlock-btn, .seg button, .chip, .link-btn, .sheet-toggle, .search { min-height: 44px; }
+      .icon-btn { width: 44px; height: 44px; }
+      .pick-item { min-height: 48px; }
+    }
+
+    /* Phones: a two-row top bar with short labels and icon buttons */
+    @media (max-width: 559px) {
+      .brand, .sync-badge, .chip-name, #top-bar .long { display: none; }
+      #top-bar .short { display: inline; }
+      /* Guess bar: short button labels, and the text may take two lines */
+      #guess-bar .long { display: none; }
+      #guess-bar .short { display: inline; }
+      .gb-text { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2; }
+      .tb-group { gap: 6px; padding: 4px 6px; flex-wrap: wrap; }
+      .seg button { padding: 0 10px; font-size: 0.85rem; }
+      .icon-able { width: 44px; padding: 0; display: inline-grid; place-items: center; }
+      .icon-able .btn-label { display: none; }
+      .icon-able .icon { display: block; }
+      .battery { gap: 6px; }
+      .battery-track { width: 44px; }
+      .battery-num { font-size: 0.8rem; min-width: 0; }
+      .pips { gap: 4px; }
+      .pip { width: 10px; height: 10px; }
+      .streak { flex-direction: column; align-items: center; gap: 0; line-height: 1.1; }
+      .streak-label { font-size: 0.62rem; }
+      .player-chip { padding: 4px; }
+      /* The score status becomes a dot on the player chip */
+      .player-chip::after { content: ""; position: absolute; right: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--paper); background: var(--sand-300); }
+      .player-chip[data-sync=""]::after { display: none; }
+      .player-chip[data-sync="ready"]::after { background: var(--leaf-500); }
+      .player-chip[data-sync="saved"]::after { background: var(--fb-green); }
+      .player-chip[data-sync="guest"]::after { background: var(--fb-yellow); }
+      .player-chip[data-sync="error"]::after { background: var(--fb-red); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #drawer { transition: none; }
+      .loading-spinner { animation-duration: 3s; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="scene" aria-label="ROOTS 3D diorama"></canvas>
+
+  <div id="loading" role="status" aria-live="polite">
+    <div class="loading-card">
+      <b class="loading-title">ROOTS <span>3D</span></b>
+      <span class="loading-spinner" aria-hidden="true"></span>
+      <p>Setting up the diorama…</p>
+      <p class="loading-slow">Still loading. If you opened index.html straight from a file, serve the folder over http(s) instead: browsers block game modules from files.</p>
+    </div>
+  </div>
+
+  <div id="hud" aria-live="polite">
+    <header id="top-bar" class="hud-slot"></header>
+    <section id="clue-panel" class="hud-slot panel" aria-label="Clues"></section>
+    <nav id="guess-bar" class="hud-slot panel" aria-label="Make a guess"></nav>
+    <aside id="drawer" class="hud-slot panel" data-open="false" aria-label="Drawer"></aside>
+    <div id="toast-layer" class="hud-slot" role="status"></div>
+  </div>
+
+  <div id="modal-layer"></div>
+
+  <noscript>
+    <p style="position:fixed;inset:auto 0 40% 0;text-align:center;">ROOTS 3D needs JavaScript to run.</p>
+  </noscript>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
