@@ -203,6 +203,50 @@
       box-shadow: var(--shadow-lift);
     }
 
+    /* "?" button (top bar) and the How to play panel (ui-help.js) */
+    .help-btn { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--sand-100); border: 1px solid var(--sand-300); color: var(--clay-700); font-weight: 800; font-size: 1.05rem; line-height: 1; }
+    .help-btn:hover { background: var(--sand-200); }
+    #help-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      padding: calc(var(--safe-t) + 24px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 24px) calc(var(--safe-l) + 16px);
+      background: rgba(43, 33, 24, 0.3);
+      -webkit-backdrop-filter: blur(6px);
+      backdrop-filter: blur(6px);
+      animation: help-fade 180ms ease-out;
+    }
+    .help-card {
+      width: min(600px, 100%);
+      max-height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-radius: var(--radius-l);
+      background: var(--paper);
+      box-shadow: var(--shadow-lift);
+      outline: none;
+      animation: help-rise 220ms cubic-bezier(.2, .8, .2, 1);
+    }
+    .help-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 22px 22px 14px; background: var(--paper); border-bottom: 1px solid var(--sand-200); }
+    .help-head h2 { margin: 0; font-size: 1.6rem; color: var(--ink-900); }
+    .help-lead { margin: 4px 0 0; color: var(--clay-700); font-weight: 600; }
+    .help-close { flex: none; margin: -4px -6px 0 0; }
+    .help-body { padding: 6px 22px 8px; color: var(--ink-700); line-height: 1.55; }
+    .help-section h3 { margin: 18px 0 6px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--clay-600); }
+    .help-section p { margin: 0 0 8px; }
+    .help-section b { color: var(--ink-900); }
+    .help-tiers { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+    .help-tiers li { display: flex; gap: 10px; align-items: baseline; }
+    .help-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--tier); transform: translateY(1px); }
+    .help-signin { margin: 18px 0 6px; padding: 12px 14px; border-radius: var(--radius-s); background: var(--sand-50); border: 1px solid var(--sand-200); color: var(--ink-700); }
+    .help-foot { position: sticky; bottom: 0; padding: 12px 22px 20px; background: var(--paper); border-top: 1px solid var(--sand-200); display: flex; justify-content: center; }
+    .help-foot .primary-btn { min-width: 200px; min-height: 44px; font-size: 1rem; }
+    @keyframes help-fade { from { opacity: 0; } }
+    @keyframes help-rise { from { opacity: 0; transform: translateY(12px); } }
+    @keyframes help-sheet { from { transform: translateY(24px); opacity: 0; } }
+
     /* Loading screen (removed by main.js after the first frame) */
     #loading {
       position: fixed;
@@ -447,6 +491,15 @@
 
     /* Phones: a two-row top bar with short labels and icon buttons */
     @media (max-width: 559px) {
+      /* How to play: a full-height sheet; the "?" keeps a 44px touch target */
+      #help-layer { padding: 0; place-items: stretch; }
+      .help-card { width: 100%; max-height: none; height: 100%; border-radius: 0; animation-name: help-sheet; }
+      .help-head { padding: calc(var(--safe-t) + 16px) 16px 12px; }
+      .help-head h2 { font-size: 1.4rem; }
+      .help-body { padding: 4px 16px 8px; }
+      .help-foot { padding: 12px 16px calc(var(--safe-b) + 16px); }
+      .help-foot .primary-btn { width: 100%; }
+      .help-btn { width: 44px; height: 44px; }
       .brand, .sync-badge, .chip-name, #top-bar .long { display: none; }
       #top-bar .short { display: inline; }
       /* Guess bar: short button labels, and the text may take two lines */
@@ -477,7 +530,12 @@
 
     @media (prefers-reduced-motion: reduce) {
       #drawer { transition: none; }
+      #help-layer, .help-card { animation: none; }
       .loading-spinner { animation-duration: 3s; }
+    }
+    /* Phones narrower than 390px: slimmer toggle buttons, so the "?" fits on the first row */
+    @media (max-width: 389px) {
+      .seg button { padding: 0 7px; }
     }
   </style>
 </head>

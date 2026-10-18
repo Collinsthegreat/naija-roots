@@ -13,6 +13,7 @@
 
 import { h, createStatePicker, createFinder } from './ui-pick.js';
 import { createLeaderboardPanel } from './ui-leaderboard.js';
+import { createHelpPanel, firstHelpVisit } from './ui-help.js';
 
 const BATTERY_MAX = 10000;
 const FLIP_TIME = 0.5;
@@ -115,8 +116,13 @@ export function createUI(handlers, { capture = false } = {}) {
     }
   });
 
+  // "How to play": the round "?" button, and the panel it opens (ui-help.js).
+  const helpBtn = h('button', { type: 'button', class: 'help-btn', 'aria-label': 'How to play', title: 'How to play', text: '?' });
+  const help = createHelpPanel({ returnFocus: helpBtn });
+  helpBtn.addEventListener('click', () => help.open());
+
   topBar.replaceChildren(
-    h('div', { class: 'tb-group panel' }, h('div', { class: 'brand' }, h('b', { text: 'ROOTS' }), ' 3D'), modeSeg.el, kindSeg.el),
+    h('div', { class: 'tb-group panel' }, h('div', { class: 'brand' }, h('b', { text: 'ROOTS' }), ' 3D'), modeSeg.el, kindSeg.el, helpBtn),
     h('div', { class: 'tb-group panel tb-stats' }, battery, pips, streak, plazaBtn, boardBtn, chip, sync),
   );
 
@@ -406,11 +412,15 @@ export function createUI(handlers, { capture = false } = {}) {
   // Escape closes the top-most layer.
   window.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (modalLayer.childElementCount) handlers.onCloseEnd();
+    if (help.isOpen) help.close();
+    else if (modalLayer.childElementCount) handlers.onCloseEnd();
     else if (finder.isOpen) finder.close();
     else if (leaderboard.isOpen) leaderboard.close();
     else if (picker.isOpen) handlers.onClearSelection();
   });
+
+  // A player's first visit opens the panel by itself (never in the capture showcase).
+  if (!capture && firstHelpVisit()) help.open();
 
   return {
     render,
