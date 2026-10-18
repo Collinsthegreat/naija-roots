@@ -5,7 +5,8 @@
 
 const START_NG = 'https://start.ng';
 const CONNECT_URL = `${START_NG}/connect`;
-const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 5000; // the reply wait, from when the connect page has loaded
+const FRAME_LOAD_TIMEOUT_MS = 15000; // the connect page's own load limit, so nothing hangs
 const MAX_STAT = 1000000000;
 
 // ---------------------------------------------------------------------------
@@ -188,7 +189,9 @@ function connectFrame() {
 }
 
 // Sends a message and resolves to start.ng's reply, or null if it didn't answer in
-// time. The timeout covers loading the frame too, so this never hangs.
+// time. As in the docs, the reply wait (timeoutMs) starts once the connect page has
+// loaded; loading the page has its own limit (FRAME_LOAD_TIMEOUT_MS), so this
+// never hangs.
 export function askStartNg(message, replyType, timeoutMs = DEFAULT_TIMEOUT_MS) {
   if (!bridgeAvailable()) return Promise.resolve(null);
   return new Promise((resolve) => {
@@ -213,13 +216,15 @@ export function askStartNg(message, replyType, timeoutMs = DEFAULT_TIMEOUT_MS) {
       }
     }
 
-    const timer = setTimeout(() => done(null), timeoutMs);
+    let timer = setTimeout(() => done(null), FRAME_LOAD_TIMEOUT_MS);
     addEventListener('message', onMessage);
 
     connectFrame().then(
       (el) => {
         if (settled) return;
         frameEl = el;
+        clearTimeout(timer);
+        timer = setTimeout(() => done(null), timeoutMs);
         el.contentWindow.postMessage({ ...message, requestId }, START_NG);
       },
       () => done(null),
@@ -248,7 +253,9 @@ function playerKey(p) {
 // Asks again whenever the player returns to the tab (visibilitychange / focus),
 // because they may have signed in or out on start.ng. Calls onChange only when
 // the player actually changed. A timed-out re-check is ignored, so a slow network
-// never turns a signed-in player back into a guest. Returns a stop function.
+// never turns a signed-in player back into a guest. If the first ask got no answer
+// (currentPlayer is the offline guest), it asks once more straight away, in the
+// background, so a slow start.ng still recognises the player. Returns a stop function.
 export function watchPlayer(currentPlayer, onChange) {
   if (!bridgeAvailable()) return () => {};
   let lastKey = playerKey(currentPlayer);
@@ -272,6 +279,7 @@ export function watchPlayer(currentPlayer, onChange) {
 
   document.addEventListener('visibilitychange', recheck);
   window.addEventListener('focus', recheck);
+  if (currentPlayer.source === 'offline') recheck(); // the one background retry
   return () => {
     document.removeEventListener('visibilitychange', recheck);
     window.removeEventListener('focus', recheck);
